@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# Editor/IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Git worktrees and submodules
+worktrees/
+cpython-repo/
+hy-repo/
+ipython-repo/
+
+# Emacs backup files
+*~
+\#*\#
+.\#*
+
+# Org mode
+.org-id-locations
+*_archive

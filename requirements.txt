@@ -1,0 +1,4 @@
+# Requirements for Hy IPython REPL fix investigation
+ipython==8.14.0
+hy==0.26.0
+pytest==7.4.0

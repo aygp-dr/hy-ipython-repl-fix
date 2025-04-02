@@ -1,0 +1,91 @@
+#+TITLE: Hy IPython REPL Fix
+#+AUTHOR: Aidan Pace <apace@defrecord.com>
+#+DATE: 02-04-2025
+#+PROPERTY: header-args :mkdirp yes
+#+OPTIONS: toc:2
+
+* Overview
+
+This repository investigates and fixes an issue with Hy's REPL when used within IPython, as reported in [[https://github.com/hylang/hy/issues/2646][Hy GitHub Issue #2646]].
+
+The issue occurs when attempting to launch the Hy REPL from within IPython, resulting in an ~AttributeError: module 'builtins' has no attribute 'quit'~ error.
+
+* Repository Structure
+
+- ~docs/~ - Documentation and analysis
+  - ~history/~ - Historical research on builtins implementation
+  - ~investigation.org~ - Investigation notes
+  - ~repl_implementations.org~ - REPL implementation comparison
+  - ~fix_proposal.org~ - Detailed fix proposal
+
+- ~tutorials/~ - Educational materials
+  - ~understanding_python_repls.org~ - Org mode tutorial with Babel support
+  - ~src/~ - Tangled Python code from tutorials
+
+- ~worktrees/~ - Git worktrees for different aspects of the issue
+  - ~reproduce-issue/~ - Scripts to reproduce the original issue
+  - ~fix-implementation/~ - Implementation of the proper fix
+  - ~monkey-patch/~ - Temporary workaround using monkey patching
+
+- ~hy-repo/~ - Submodule of the Hy codebase
+- ~ipython-repo/~ - Submodule of the IPython codebase
+
+* Getting Started
+
+** Prerequisites
+
+- Python 3.8 or higher
+- IPython
+- Hy
+- Emacs with Org mode (for working with tutorials)
+
+** Installation
+
+#+begin_src bash
+# Clone the repository with submodules
+git clone --recurse-submodules https://github.com/aygp-dr/hy-ipython-repl-fix.git
+cd hy-ipython-repl-fix
+
+# Set up a virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+#+end_src
+
+* Development Workflow
+
+This repository uses git worktrees to organize different aspects of the investigation and solution:
+
+#+begin_src bash
+# Create and checkout a worktree for issue reproduction
+git worktree add --detach worktrees/reproduce-issue
+cd worktrees/reproduce-issue
+git checkout -b reproduce-issue
+
+# Create and checkout a worktree for the fix implementation
+git worktree add --detach worktrees/fix-implementation
+cd worktrees/fix-implementation
+git checkout -b fix-implementation
+
+# Create and checkout a worktree for the monkey patch
+git worktree add --detach worktrees/monkey-patch
+cd worktrees/monkey-patch
+git checkout -b monkey-patch
+#+end_src
+
+* Learning Resources
+
+- [[https://docs.python.org/3/tutorial/interpreter.html][Python Tutorial - Interpreter]]
+- [[https://ipython.readthedocs.io/en/stable/interactive/python-ipython-diff.html][IPython vs Python Differences]]
+- [[https://tush.ar/post/builtins/][Understanding Python's builtins]]
+
+* Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+* Related Issues
+
+- [[https://github.com/hylang/hy/issues/2646][Hy GitHub Issue #2646]] - The original issue report
+- [[https://github.com/python/cpython/issues/119856][CPython Issue #119856]] - Related CPython issue about quit/exit handling
