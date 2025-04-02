@@ -1,0 +1,117 @@
+#+TITLE: Proposed Fix for Hy IPython REPL Issue
+#+AUTHOR: aygp-dr
+#+DATE: 02-04-2025
+#+PROPERTY: header-args :mkdirp yes
+
+* Issue Summary
+When trying to launch the Hy REPL from within IPython with ~hy.REPL(locals = locals()).run()~, the following error is encountered:
+
+#+begin_example
+AttributeError: module 'builtins' has no attribute 'quit'
+#+end_example
+
+The error occurs in ~hy/repl.py~ at line 408 when the REPL tries to access ~builtins.quit~, which doesn't exist in IPython's environment.
+
+* Root Cause Analysis
+The issue stems from different approaches to handling ~quit~/~exit~ functions:
+
+** Standard Python Approach
+- Defines ~quit~ and ~exit~ as instances of ~_sitebuiltins._Quitter~ in the ~builtins~ module
+- Added by the ~site~ module during interpreter initialization
+- These objects remain accessible throughout the Python session
+
+** IPython Approach
+- Uses a ~BuiltinTrap~ class that removes the standard ~quit~ and ~exit~ functions from builtins
+- Marked as ~HideBuiltin~ in IPython's configuration
+- IPython provides its own implementations via ~ExitAutocall~ class
+- These are accessible through the interactive namespace, not through builtins
+
+** Hy Approach
+- Stores the original ~builtins.quit~ and ~builtins.exit~ when the REPL starts
+- Replaces them with its own ~HyQuitter~ instances
+- Restores the original values when the REPL exits
+- *Problem*: Assumes these attributes always exist in builtins
+
+* Proposed Solutions
+
+** Option 1: Defensive Attribute Access
+Modify the REPL implementation to handle missing attributes:
+
+#+begin_src python
+# hy/repl.py:404-408 (original)
+saved_values = (
+    getattr(sys, "ps1", sentinel),
+    getattr(sys, "ps2", sentinel),
+    builtins.quit,  # <- This line fails in IPython
+    builtins.exit,  # <- This line fails in IPython
+    builtins.help,
+)
+
+# Modified version
+saved_values = (
+    getattr(sys, "ps1", sentinel),
+    getattr(sys, "ps2", sentinel),
+    getattr(builtins, "quit", None),  # <- Use getattr with default
+    getattr(builtins, "exit", None),  # <- Use getattr with default 
+    getattr(builtins, "help", None),
+)
+#+end_src
+
+** Option 2: Retrieve IPython's Implementations
+Detect if running within IPython and use its quit/exit implementations:
+
+#+begin_src python
+# Check if running in IPython
+def is_ipython():
+    try:
+        return __IPYTHON__ is not None
+    except NameError:
+        return False
+
+# In the REPL.run method
+if is_ipython():
+    # Get IPython's implementations
+    ip = get_ipython()
+    original_quit = ip.exit
+    original_exit = ip.exit
+else:
+    original_quit = builtins.quit
+    original_exit = builtins.exit
+#+end_src
+
+** Option 3: Create Fallback Implementations
+Provide fallback implementations when the attributes don't exist:
+
+#+begin_src python
+# In the REPL.run method
+try:
+    original_quit = builtins.quit
+except AttributeError:
+    original_quit = None
+
+try:
+    original_exit = builtins.exit
+except AttributeError:
+    original_exit = None
+
+# Later when restoring
+if original_quit is not None:
+    builtins.quit = original_quit
+elif hasattr(builtins, "quit"):
+    del builtins.quit
+#+end_src
+
+* Recommended Solution
+Option 1 (Defensive Attribute Access) is the simplest and most robust solution. It requires minimal changes to the codebase and handles both standard Python and IPython environments correctly.
+
+* Implementation Plan
+1. Fork the Hy repository
+2. Create a branch for the fix
+3. Modify ~repl.py~ to implement Option 1
+4. Add tests to verify IPython compatibility
+5. Submit a pull request to the Hy project
+
+* Test Cases
+1. Standard Python: Launch Hy REPL within standard Python interpreter
+2. IPython: Launch Hy REPL within IPython
+3. Exit Handling: Verify that both ~exit~ and ~quit~ functions work correctly in both environments

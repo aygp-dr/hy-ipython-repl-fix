@@ -1,0 +1,50 @@
+#+TITLE: REPL Implementations and Quit/Exit Handling
+#+AUTHOR: aygp-dr
+#+DATE: 02-04-2025
+#+PROPERTY: header-args :mkdirp yes
+
+* Python Standard REPL
+Python's standard REPL is implemented in the ~code~ module, particularly ~code.InteractiveConsole~.
+
+** Quit/Exit Implementation
+- Python defines ~quit~ and ~exit~ as instances of ~_sitebuiltins._Quitter~
+- These are injected by the ~site~ module during interpreter initialization
+- Standard implementation is in ~Lib/site.py~
+- The objects are added to ~builtins~ module
+
+* IPython REPL
+IPython reimplements the REPL with additional features.
+
+** Quit/Exit Implementation
+- IPython uses a ~BuiltinTrap~ class to manage Python builtins
+- It removes the standard ~quit~ and ~exit~ functions from builtins
+- Replaces them with its own ~ExitAutocall~ implementation
+- Exposes these through the InteractiveShell's namespace
+- When users call ~exit()~ or ~quit()~, they're invoking an ~ExitAutocall~ instance
+- This allows IPython to perform proper cleanup before exiting
+
+** Implementation Details
+- ~IPython/core/builtin_trap.py~ - Manages the builtins
+- Marked ~exit~ and ~quit~ as ~HideBuiltin~
+- ~IPython/core/interactiveshell.py~ - Provides alternative implementations
+
+* Hy REPL
+Hy extends Python's standard REPL.
+
+** Quit/Exit Implementation
+- Hy's REPL is implemented in ~hy/repl.py~ as the ~REPL~ class
+- Extends Python's ~code.InteractiveConsole~
+- Creates custom objects for ~quit~, ~exit~, and ~help~ with ~HyQuitter~ and ~HyHelper~
+- Stores the original builtins and replaces them with Hy-specific versions
+- Restores the original values when the REPL exits
+
+** The Issue
+- Hy assumes ~builtins.quit~ and ~builtins.exit~ always exist
+- In standard Python this is true, but not in IPython
+- IPython removes these from builtins
+- Attempting to access ~builtins.quit~ raises an AttributeError
+
+* Potential Solutions
+1. Use ~getattr(builtins, "quit", fallback)~ instead of direct access
+2. Create dummy functions when the attributes don't exist
+3. Properly handle cases where the builtins are missing

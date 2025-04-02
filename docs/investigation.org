@@ -1,0 +1,31 @@
+#+TITLE: Investigation of Hy IPython REPL Issue
+#+AUTHOR: aygp-dr
+#+DATE: 02-04-2025
+#+PROPERTY: header-args :mkdirp yes
+
+* Overview of Issue #2646 in Hy
+Investigating [[https://github.com/hylang/hy/issues/2646][Hy GitHub Issue #2646]] regarding IPython REPL compatibility issues.
+
+* Repository Structure
+- hy-repo: Hy source code
+- ipython-repo: IPython source code
+- worktrees: Directory for git worktrees to test different configurations
+
+* Research Areas
+** Python's builtin.quit History and Usage
+Tracking the implementation of builtin.quit in CPython and how it's handled in REPLs.
+
+** REPL Support in Python, IPython, and Hy
+Investigating how REPLs are implemented in:
+- Python's built-in REPL
+- IPython
+- Hy
+
+** Related CPython Issue
+Information related to [[https://github.com/python/cpython/issues/119856][CPython Issue #119856]].
+
+* Investigation Plan
+1. Trace the execution flow in Hy's REPL when interacting with IPython
+2. Identify how Python and IPython handle quit/exit in their REPLs
+3. Compare implementation approaches
+4. Test potential solutions using worktrees
