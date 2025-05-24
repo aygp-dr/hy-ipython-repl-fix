@@ -1,0 +1,309 @@
+#+TITLE: Understanding Python REPLs and the Hy IPython Issue
+#+AUTHOR: Aidan Pace
+#+DATE: 02-04-2025
+#+PROPERTY: header-args :mkdirp yes
+#+PROPERTY: header-args:python :session py-session :results output
+
+* Introduction
+
+This tutorial explores how REPLs (Read-Eval-Print Loops) are implemented in Python, IPython, and Hy, with a focus on understanding and fixing [[https://github.com/hylang/hy/issues/2646][Hy GitHub Issue #2646]].
+
+* Python's REPL Implementation
+:PROPERTIES:
+:header-args:python: :tangle understanding_python_repls.py
+:END:
+
+** Standard Python REPL
+
+Let's examine how standard Python implements its REPL functions:
+
+#+begin_src python :tangle yes
+# -- Python's Built-in REPL Implementation --
+
+import builtins
+import site
+import sys
+import code
+
+# Check if quit/exit are in builtins (they should be in standard Python)
+print("---- Standard Python REPL Environment ----")
+print("'quit' in builtins.__dict__:", 'quit' in builtins.__dict__)
+print("'exit' in builtins.__dict__:", 'exit' in builtins.__dict__)
+
+# Inspect the types of quit/exit
+if hasattr(builtins, 'quit'):
+    print("\nType of builtins.quit:", type(builtins.quit))
+    print("Representation:", repr(builtins.quit))
+    # We're not calling quit() as it would exit the process
+    
+# Look at site.py's implementation
+print("\n---- How quit/exit are added to builtins ----")
+print("These objects are added by the site module during interpreter startup")
+print("They are instances of site._Quitter class")
+
+# Recreate how site.py defines quit/exit
+class Quitter:
+    def __init__(self, name):
+        self.name = name
+    def __repr__(self):
+        return f"Use {self.name}() or Ctrl-D (i.e. EOF) to exit"
+    def __call__(self, code=None):
+        # In real implementation, this would raise SystemExit
+        print(f"[Would exit with code: {code}]")
+
+# Create custom quit/exit (for demonstration only)
+custom_quit = Quitter("quit")
+custom_exit = Quitter("exit")
+
+print("\nCustom quit repr:", repr(custom_quit))
+print("Would execute quit:", end=" ")
+custom_quit()
+#+end_src
+
+** Interactive Console Implementation
+
+The standard interactive console is implemented in the ~code~ module:
+
+#+begin_src python :tangle yes
+# -- Python's code.InteractiveConsole --
+
+import code
+
+print("\n---- Python's InteractiveConsole ----")
+print("This is the base class for REPL implementations")
+print("Key methods:")
+print("- runsource(): Handles user input")
+print("- runcode(): Executes compiled code")
+print("- interact(): Main REPL loop")
+
+# Example of a minimal InteractiveConsole subclass
+class MinimalREPL(code.InteractiveConsole):
+    def __init__(self, locals=None):
+        super().__init__(locals=locals)
+        self.ps1 = ">>> "
+        self.ps2 = "... "
+    
+    def interact(self, banner=None):
+        print("This would start a custom REPL loop")
+        # In real implementation: super().interact(banner)
+
+# Create an instance (but don't start it)
+repl = MinimalREPL()
+print("\nREPL instance created but not started")
+#+end_src
+
+* IPython's REPL Implementation
+:PROPERTIES:
+:header-args:python: :tangle understanding_python_repls.py
+:END:
+
+IPython handles quit/exit differently than standard Python:
+
+#+begin_src python :tangle yes
+# -- IPython's Approach to quit/exit --
+
+print("\n---- IPython's REPL Implementation ----")
+print("IPython uses a BuiltinTrap to manage built-in objects")
+print("It removes standard quit/exit and provides its own implementation")
+
+# Mock of IPython's BuiltinTrap (simplified)
+class HideBuiltin:
+    pass
+
+HIDE_BUILTIN = HideBuiltin()
+
+class MockBuiltinTrap:
+    def __init__(self):
+        self._orig_builtins = {}
+        self.auto_builtins = {
+            'exit': HIDE_BUILTIN,
+            'quit': HIDE_BUILTIN
+        }
+    
+    def activate(self):
+        """Simulate removing quit/exit from builtins"""
+        print("Activating builtin trap...")
+        for name, value in self.auto_builtins.items():
+            if value is HIDE_BUILTIN:
+                if name in builtins.__dict__:
+                    self._orig_builtins[name] = builtins.__dict__[name]
+                    print(f"Hiding {name} from builtins")
+                    # In real IPython this would remove it from builtins.__dict__
+    
+    def deactivate(self):
+        """Restore original builtins"""
+        print("Deactivating builtin trap...")
+        for name, value in self._orig_builtins.items():
+            print(f"Restoring {name} to builtins")
+            # In real IPython this would restore them
+
+# Demonstrate the BuiltinTrap behavior
+trap = MockBuiltinTrap()
+trap.activate()
+print("\nAfter activation, in IPython these would be missing from builtins")
+trap.deactivate()
+
+# IPython provides ExitAutocall instead
+print("\n---- IPython's ExitAutocall ----")
+print("IPython replaces quit/exit with ExitAutocall instances")
+print("These are available in the interactive namespace, not builtins")
+
+class MockExitAutocall:
+    def __repr__(self):
+        return "Exit IPython"
+    
+    def __call__(self, code=None):
+        print(f"[Would exit IPython with code: {code}]")
+
+# Mock IPython's implementation
+ip_exit = MockExitAutocall()
+print("\nIPython exit repr:", repr(ip_exit))
+print("Would execute IP exit:", end=" ")
+ip_exit()
+#+end_src
+
+* Hy's REPL Implementation
+:PROPERTIES:
+:header-args:python: :tangle understanding_python_repls.py
+:END:
+
+Hy extends Python's InteractiveConsole but assumes builtins.quit exists:
+
+#+begin_src python :tangle yes
+# -- Hy's REPL Implementation --
+
+print("\n---- Hy's REPL Implementation ----")
+print("Hy extends code.InteractiveConsole")
+print("It saves and restores builtins.quit/exit but doesn't check if they exist")
+
+# Simplified version of Hy's HyQuitter
+class HyQuitter:
+    def __init__(self, name):
+        self.name = name
+    
+    def __repr__(self):
+        return f"Use ({self.name}) or Ctrl-D (i.e. EOF) to exit"
+    
+    def __call__(self, code=None):
+        print(f"[Would exit Hy with code: {code}]")
+
+# Mock implementation of the problematic code in Hy's REPL
+def mock_hy_repl_run():
+    print("\nStarting mock Hy REPL...")
+    
+    # This is where the problem occurs
+    try:
+        # Hy tries to access builtins.quit without checking if it exists
+        saved_quit = builtins.quit  # This fails in IPython
+        print("Successfully saved original builtins.quit")
+        
+        # Replace with Hy's own implementation
+        builtins.quit = HyQuitter("quit")
+        print("Replaced with HyQuitter")
+        
+        print("REPL would run here...")
+        
+        # Restore original value
+        builtins.quit = saved_quit
+        print("Restored original builtins.quit")
+        
+    except AttributeError as e:
+        print(f"Error: {e}")
+        print("This is the error that happens in IPython!")
+
+# Don't actually run this as we don't want to modify builtins
+print("(Simulation only - not actually modifying builtins)")
+
+# Print explanation of the issue
+print("\n---- The Issue ----")
+print("When Hy runs in standard Python:")
+print("1. builtins.quit exists")
+print("2. Hy saves it, replaces it, then restores it")
+print("3. Everything works fine")
+print("\nWhen Hy runs in IPython:")
+print("1. IPython has removed builtins.quit")
+print("2. Hy tries to access it → AttributeError")
+print("3. The REPL fails to start")
+#+end_src
+
+* The Solution
+:PROPERTIES:
+:header-args:python: :tangle understanding_python_repls.py
+:END:
+
+The solution is to handle missing builtins gracefully:
+
+#+begin_src python :tangle yes
+# -- The Solution --
+
+print("\n---- The Proposed Fix ----")
+print("The fix uses getattr with a default value to handle missing attributes")
+
+# Fixed implementation
+def fixed_hy_repl_run():
+    print("\nStarting fixed Hy REPL...")
+    
+    # Use getattr with a default value of None
+    saved_quit = getattr(builtins, "quit", None)
+    print(f"Saved original builtins.quit: {saved_quit}")
+    
+    # Replace with Hy's implementation
+    builtins.quit = HyQuitter("quit")
+    print("Replaced with HyQuitter")
+    
+    print("REPL would run here...")
+    
+    # Restore or remove
+    if saved_quit is not None:
+        builtins.quit = saved_quit
+        print("Restored original builtins.quit")
+    else:
+        delattr(builtins, "quit")
+        print("Removed builtins.quit as it wasn't there originally")
+
+# Don't actually run this as we don't want to modify builtins
+print("(Simulation only - not actually modifying builtins)")
+
+print("\n---- Summary ----")
+print("The fix ensures Hy REPL works in both environments:")
+print("1. Use getattr with default values when saving attributes")
+print("2. Check if saved values are None when restoring")
+print("3. Remove attributes that weren't originally present")
+print("\nThis approach is robust and handles both Python and IPython correctly")
+#+end_src
+
+* Testing the Solution
+:PROPERTIES:
+:header-args:python: :tangle understanding_python_repls.py
+:END:
+
+Here's how we can test our solution:
+
+#+begin_src python :tangle yes
+# -- Testing the Fix --
+
+print("\n---- How to Test the Fix ----")
+print("1. Install Python, IPython, and Hy")
+print("2. Apply the fix to Hy's repl.py")
+print("3. Test in both environments:")
+
+print("\n   Standard Python test:")
+print("   $ python -c \"import hy; hy.REPL(locals=locals()).run()\"")
+
+print("\n   IPython test:")
+print("   $ ipython -c \"import hy; hy.REPL(locals=locals()).run()\"")
+
+print("\nExpected result: Both should start the Hy REPL without errors")
+#+end_src
+
+* Conclusion
+
+With these changes, Hy's REPL should work correctly in both standard Python and IPython environments, resolving the issue reported in [Hy GitHub Issue #2646](https://github.com/hylang/hy/issues/2646).
+
+The key takeaway is that REPLs need to handle environment differences gracefully, especially when accessing built-in attributes that might be modified by different Python implementations.
+
+** References
+
+- [Python Tutorial - Interpreter](https://docs.python.org/3/tutorial/interpreter.html)
+- [IPython vs Python Differences](https://ipython.readthedocs.io/en/stable/interactive/python-ipython-diff.html)
+- [Understanding Python's builtins](https://tush.ar/post/builtins/)
